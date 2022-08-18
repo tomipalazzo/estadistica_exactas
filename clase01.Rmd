@@ -1,0 +1,76 @@
+
+# Ejercicio 1
+a)
+```{r}
+t = 0
+for (i in 1:1000) {
+  t = t + i
+}
+t
+
+```
+b)
+
+```{r}
+acum = 0
+i = 0
+while (acum < 10000) {
+  acum = acum + i
+  i = i + 1
+}
+
+n = i
+print(n)
+```
+```{r}
+f = function(v){
+  res = 0
+  for (i in v) {
+    if (i>0) {
+      res = res + i
+    }
+  }
+  return(res)
+}
+```
+
+```{r}
+v = c(1,1,1,1,1,-5)
+f(v)
+```
+# Ejercicio 2
+```{r}
+f = function(p){
+  return(p*(1-p))
+}
+p = seq(0,1,0.02)
+plot(p, f(p))
+```
+
+# Ejercicio 3
+
+```{r}
+t = seq(-50,50,1)
+plot(t, sin(t),type="l", col="blue")
+lines(t,cos(t), col= "red")
+lines(t, cos(t**2))
+```
+```{r}
+autos = read.table("autos.txt", header = T)
+autos
+```
+```{r}
+# a
+autos[1,]
+# b
+autos[,2]
+# c
+min(autos[,2])
+# d
+sum(autos[1:4,2])
+# e
+apply(X=autos, MARGIN=2, FUN=sum)
+# f
+plot(autos[,1],autos[,2])
+
+```
