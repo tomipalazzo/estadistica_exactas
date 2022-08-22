@@ -1,0 +1,50 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(aplpack)
+df = read.table("ENNyS_menorA2.txt", header = T)
+```
+
+```{r}
+table(df['Mujeres',])
+```
+```{r}
+sexo = table(df$Sexo)
+tipo_embarazo = table(df$Tipo_embarazo)
+edad = df$Edad
+peso = df$Peso
+perim_encef = df$Perim_encef
+talla = df$Talla
+
+barplot(sexo)
+barplot(tipo_embarazo)
+pie(sexo)
+pie(tipo_embarazo)
+```
+```{r}
+table(df$Sexo, df$Tipo_embarazo)
+```
+```{r}
+hist(edad)
+hist(peso)
+hist(perim_encef)
+hist(talla)
+
+boxplot(edad)
+boxplot(peso)
+boxplot(perim_encef)
+boxplot(talla)
+```
+```{r}
+alpha_01 = quantile(edad, c(0.1, 0.9))
+edadPodada = edad[edad>alpha_01[1] & edad<alpha_01[2]]
+mean(edad, trim = 0.1)
+mean(edadPodada)
+```
+```{r}
+bagplot(peso, perim_encef, approx.limit = 50)
+```
+
