@@ -1,0 +1,70 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+buffalo = scan("buffalo.txt")
+
+```
+# Ejercicio 1
+```{r}
+# a
+hist(buffalo)
+
+a1 = buffalo[buffalo>20 & buffalo<130]
+hist(a1,breaks = seq(20, 130, 10))
+
+# b
+b1 = buffalo[buffalo>22 & buffalo<132]
+hist(b1,breaks = seq(22, 132, 10))
+
+#c
+c1 = buffalo[buffalo>24 & buffalo<134]
+hist(c1,breaks = seq(24, 134, 10))
+
+# d
+d1 = buffalo[buffalo>26 & buffalo<136]
+hist(a1,breaks = seq(26, 136, 10))
+```
+# Ejercicio 2
+
+```{r}
+corte = c(0, 20, 30, 40, 50, 60,
+70, 80, 90, 100, 110, 120, 130)
+
+hist(buffalo, breaks = corte)
+
+```
+# Ejercicio 3 - Estimemos a $P$
+
+```{r}
+proba_x = function(X, x, h){
+  n = length(X)
+  frecu = length(X[X>=x-h & X<=x+h])
+  res = frecu/n
+  
+  return(res)
+}
+```
+
+# Ejercicio 4
+
+```{r}
+p_h10 = rep(0, length(buffalo))
+N = length(buffalo)
+for (i in range(N)) {
+  p_h10[i] = proba_x(buffalo, i, 10)
+}
+
+plot(buffalo, p_h10)
+```
+# Ejercicio 7
+
+```{r}
+plot(density(x = bufalo,kernel = "gaussian"))
+plot(density(x = bufalo,kernel = "rectangular"))
+plot(density(x = bufalo,kernel = "epanechnikov"))
+```
+
+
+
