@@ -1,0 +1,46 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+# Ejercicio1
+```{r}
+debernardi_df = read.csv("/home/tomi/Tomi/estadistica_exactas/Datos/Debernardi.csv")
+diagnosis = debernardi_df$diagnosis
+
+# a
+freq_relative = table(diagnosis)
+
+# b
+barplot(freq_relative)
+```
+# Ejercicio 2
+```{r}
+titanic = read.csv("/home/tomi/Tomi/estadistica_exactas/Datos/datos_titanic.csv")
+sexo    = titanic[,"Sex"] 
+mujeres_titanic = titanic[sexo =='female',]
+sobrevivientes = titanic$Survived
+Pclass = titanic$Pclass
+
+# a: Voy a medir la probabilidad de que 
+# b:
+table(sobrevivientes, Pclass)
+
+
+```
+
+```{r}
+iridio = read.table("/home/tomi/Tomi/estadistica_exactas/Datos/iridio.txt", header = T)
+rodio  = read.table("/home/tomi/Tomi/estadistica_exactas/Datos/rodio.txt", header = T)
+
+
+hist(iridio$iridio)
+hist(rodio$rodio)
+boxplot(iridio$iridio)
+boxplot(rodio$rodio)
+
+
+```
+
+
