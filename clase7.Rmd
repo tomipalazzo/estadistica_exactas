@@ -1,0 +1,40 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+IC_mu_var_conocida = function(datos, var_0, alpha){
+  
+  x_mean = mean(datos)
+  z_alpha = qnorm(1-alpha/2)
+  
+  ic = c(-z_alpha * sqrt(var_0/length(datos)) + x_mean, z_alpha * sqrt(var_0/length(datos)) + x_mean)
+  
+  return(ic)
+}
+
+
+```
+```{r}
+datos_normales = rnorm(5, mean = 4, sd = 3)
+IC_mu_var_conocida(datos_normales,9,0.05)
+```
+```{r}
+N_rep = 10000000
+entran = rep(0,N_rep)
+for (i in 1:N_rep) {
+  genero_muestra = rnorm(5,4,3)
+  entran[i] = (4 >= IC_mu_var_conocida(genero_muestra,9,0.05)[1] && 4<= IC_mu_var_conocida(genero_muestra,9,0.05)[2]) 
+}
+print(sum(entran)/N_rep)
+```
+# Ejercicio 4
+
+```{r}
+IC_mu_var_desconocida = function(datos, S_square, alpha){
+  
+}
+```
+
+
