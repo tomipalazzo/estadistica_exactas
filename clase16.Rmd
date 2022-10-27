@@ -1,0 +1,46 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+autos = cars
+n = 50
+X = matrix(rep(1,100),nrow=50, ncol=2)
+X[,2] = autos$speed
+y = autos$dist
+```
+
+# Calculo los tetas correspondientes
+
+```{r}
+teta = solve(t(X)%*%X)%*%t(X)%*%y
+y_hat = X%*%teta
+
+```
+
+```{r}
+plot(X[,2],y)
+lines(X[,2], X%*%teta, col='red')
+```
+
+```{r}
+Scuad = 0
+for(i in 1:n){
+  Scuad = Scuad + 1/(n-2) * (y[i]-y_hat[i])**2
+}
+Scuad
+
+
+```
+```{r}
+X3 = matrix(rep(1,150),nrow=50, ncol=3)
+X3[,2] = autos$speed
+X3[,3] = (autos$speed)**2
+teta3 = solve(t(X3)%*%X3)%*%t(X3)%*%y
+
+plot(X[,2],y)
+lines(X[,2], X3%*%teta3, col='red')
+```
+
