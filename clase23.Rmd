@@ -1,0 +1,38 @@
+```{r}
+# Leo datos
+library(GGally)
+
+entren = read.table("//home/clinux01/estadistica_exactas/alturasENNyS2_entren.txt",col.names = c('altura', 'sexo'))
+test = read.table("//home/clinux01/estadistica_exactas/alturasENNyS2_prueba.txt", col.names = c('altura', 'sexo'))
+
+```
+
+```{r}
+ggpairs(entren)
+boxplot(entren$altura~entren$sexo)
+```
+```{r}
+alturas165 = order(abs(entren$altura-165))[1:10]
+clasificoReglaMayoria165 = if (mean(entren$sexo[alturas165])>1/2) {
+  1
+}else {
+  0
+}
+
+alturas175 = order(abs(entren$altura-175))[1:10]
+clasificoReglaMayoria175 = if (mean(entren$sexo[alturas175])>1/2) {
+  1
+}else {
+  0
+}
+```
+
+```{r}
+# Promedio Moviles
+h = 1.5
+altura165h = entren$sexo[entren$altura > 165-h & entren$altura < 165+h]
+
+
+
+```
+
