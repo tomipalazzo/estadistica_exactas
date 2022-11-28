@@ -1,0 +1,614 @@
+# Estimacion Beta
+
+```{r}
+#cargo los datos
+datos<-cars
+names(datos)
+
+#defino las variables
+x<-datos$speed #velocidad del auto
+y<-datos$dist #distancia requerida de frenado
+
+plot(x,y)
+
+# armamos a mano la matriz de diseño
+X<-cbind(rep(1,length(x)),x)
+
+#calculamos usando la formula
+beta_sombrero<-solve(t(X)%*%X)%*%t(X)%*%y
+
+beta_sombrero0<-beta_sombrero[1]
+beta_sombrero1<-beta_sombrero[2]
+
+#graficamos la recta
+plot(x,y,pch=20)
+abline(beta_sombrero,col="dodgerblue3", lwd=2)#, lty=2)
+
+#superponemos las estimaciones de nuestros puntos de diseño
+y_sombrero<-beta_sombrero0+beta_sombrero1*x
+points(x,y_sombrero,col="orange", pch=18)
+
+
+# estimamos sigma^2
+
+sum((y-y_sombrero)^2)/(length(x)-2)
+
+# para agregar mas covariables
+
+x2<-x^2
+reg2<-lm(y~x+x2)
+summary(reg2)
+
+#graficamos
+y2<-reg2$coefficients[1]+reg2$coefficients[2]*x+reg2$coefficients[3]*x2
+lines(x,y2, col="darkolivegreen", lwd=2)
+
+```
+
+
+# Stepwise
+
+```{r}
+library(leaps)
+library(readxl)
+library(GGally)
+
+# Producción de biomasa en el estuario Cape Fear. 3 
+# tipos de vegetación en 3 regiones. 
+#Se analizan variables del sustrato
+
+bio<-read_excel("Biomasa.xls")
+attach(bio)
+x<-cbind(K,SODIO,PH,SAL,ZN)
+
+ggpairs(bio)
+
+
+
+reg<-lm(BIO~K+SODIO+PH+SAL+ZN)
+summary(reg)
+
+#pruebo con seleccion de variables
+
+forw<-regsubsets(BIO~x,data = bio, method = "exhaustive")
+#help("regsubsets")
+summary(forw)
+names(summary(forw))
+
+par(mfrow=c(2,2))
+plot(summary(forw)$rss,pch=20,xlab="Modelo", ylab= "RSS")
+plot(summary(forw)$rsq,pch=20,xlab="Modelo", ylab= "R^2")
+plot(summary(forw)$adjr2,pch=20,xlab="Modelo", ylab= "R^2 aj")
+plot(1:5,summary(forw)$cp,pch=20,ylim=c(0,8),xlab="Modelo", ylab= "CP")
+abline(0,1)
+par(mfrow=c(1,1))
+
+
+####################################
+#otro paquete que me gusta
+
+library(bestglm)
+Xmodelo<-model.matrix(reg)
+Y<-BIO
+Xy<-data.frame(Xmodelo[,-1],Y)
+res.bestglm <-bestglm(Xy = Xy,
+                      IC = "CV",
+                      method = "exhaustive")
+
+help("bestglm")
+res.bestglm$Subsets
+
+library(MASS)
+```
+
+
+# Lasso vs Ridge
+
+```{r}
+rdpercentGDP <- read.csv("/home/tomi/Downloads/rdpercentGDP.txt",sep = "")
+attach(rdpercentGDP)
+names(rdpercentGDP)
+head(rdpercentGDP)
+par(mfrow=c(1,1))
+
+plot(1996:2016,france,type="l",col="blue",ylim=c(0,3.8),xlab="years",ylab="R&D",
+     main="Research and development expenditure (% of GDP)",lwd=2)
+points(1996:2016,usa,type="l",lwd=2)
+points(1996:2016,argen,type="l",col="lightblue",lwd=2)
+points(1996:2016,ger,type="l",col="orange",lwd=2)
+points(1996:2016,china,type="l",col="red",lwd=2)
+points(1996:2016,japan,type="l",col="green",lwd=2)
+points(1996:2016,finl,type="l",col="magenta",lwd=2)
+points(1996:2016,uk,type="l",col="grey",lwd=2)
+
+text(2015.2,japan[21]+0.3,labels="Japan",col="green")
+text(2015.2,france[21]+0.15,labels="France",col="blue")
+text(2015,ger[21]+0.1,labels="Germany",col="orange")
+text(2015.8,usa[21]-0.1,labels="USA",col="black")
+text(2015.2,china[21]-0.2,labels="China",col="red")
+text(2014.8,argen[21]+0.2,labels="Argentina",col="lightblue")
+text(2015.5,uk[21]-0.2,labels="UK",col="grey")
+text(2012,finl[17]+0.4,labels="Finland",col="magenta")
+
+# Estudiemos un modelo de regresion
+set.seed(27)
+entrena <- sample(c(TRUE,FALSE),nrow(rdpercentGDP),rep=TRUE,prob=c(0.8,0.2)) 
+
+ajusteml<-lm(usa~.,data = rdpercentGDP[entrena,-1])
+summary(ajusteml) #no dan significativas todas...
+
+# Vemos que cambiando la semilla me da re diferente la estimacion
+# será que esta todo super correlacionad??
+
+XX <- model.matrix(ajusteml)[,-1] #sin el intercept
+
+cor(rdpercentGDP[2:9]) #vemos que hay covariables que estan muy correlacionadas :(
+
+# bonus track
+# ¿Estan correlacionadas las variables?
+library(regclass)
+VIF(ajusteml)#vif>10 alta correlacion
+
+#ahora con Ridge, que es la penalizaci�n que se recomienda para estos casos
+library(glmnet)
+
+# poner alpha = 0 para que haga el ajuste ridge
+ajuste.ridge <- glmnet(XX,usa[entrena],alpha=0)   
+names(ajuste.ridge)
+summary(ajuste.ridge) ## no se entiende mucho
+plot(ajuste.ridge,label = T,xvar="lambda",lwd=2,main="Ridge Regression")
+abline(h=0,lty=2)
+ajuste.ridge$lambda
+coef.glmnet(ajuste.ridge) ## coeficientes para valores de lambda en ajuste.ridge$lambda
+grilla <- 10^seq(10,-2,length=100)
+### elijo lambda por validaci�n cruzada
+set.seed(21)
+vcR <- cv.glmnet(XX,usa[entrena],alpha=0,lambda=grilla,nfolds = 5)
+plot(vcR)
+names(vcR)
+vcR$lambda.min
+vcR$lambda.1se
+rid.1se<-glmnet(XX,usa[entrena],alpha=0,lambda = vcR$lambda.1se)
+rid.min<-glmnet(XX,usa[entrena],alpha=0,lambda = vcR$lambda.min)
+coef(rid.1se)
+coef(rid.min)
+ajusteml
+
+## poner alpha=1 si queremos hacer LASSO
+set.seed(87)
+vcL <- cv.glmnet(XX,usa[entrena],alpha=1,lambda=grilla,nfolds = 5)
+plot(vcL)
+vcL$lambda.min
+vcL$lambda.1se
+lasso.1se<-glmnet(XX,usa[entrena],alpha=1,lambda = vcL$lambda.1se)
+lasso.min<-glmnet(XX,usa[entrena],alpha=1,lambda = vcL$lambda.min)
+coef(lasso.1se) 
+coef(lasso.min) ## selecciona mas variables
+
+### medimos la capacidad de predicci�n
+prueba <-(!entrena)
+is.matrix(rdpercentGDP[prueba,-c(1,9)]) ## no consideramos a la primera y última columna
+## el as.matrix es un comando que "salva" cuando se necesita objeto matriz
+nuevo <- as.matrix(rdpercentGDP[prueba,-c(1,9)]) ## me quedo con la submatriz que contiene
+## a las filas de prueba de las covariables involucradas
+
+## Ridge
+ridge.pred <- predict(rid.1se,s=vcR$lambda.1se,newx=nuevo)
+ecmR <- mean((ridge.pred-usa[prueba])^2)
+## con todo el conjunto de datos, estimo los par�metros
+covariables <- as.matrix(rdpercentGDP[,-c(1,9)])
+salidaR <- glmnet(covariables,usa,alpha=0)
+predict(salidaR,type="coefficients",s=vcR$lambda.1se)[1:8,]
+## LASSO
+lasso.pred <- predict(lasso.1se,s=vcL$lambda.1se,newx=nuevo)
+ecmL <- mean((lasso.pred-usa[prueba])^2)
+## ahora con todo el conjunto de datos, estimo los par�metros
+salidaL <- glmnet(covariables,usa,alpha=1)
+predict(salidaL,type="coefficients",s=vcL$lambda.1se)[1:8,]
+
+c(ecmR,ecmL) ## da mejor error de predicci�n ridge
+```
+
+
+# Intervalos de Confianza e Intervalos de Prediccion
+
+```{r}
+library(ggplot2)
+
+#cargo los datos
+autos<-cars
+
+#defino las variables
+x<-autos$speed #velocidad del auto
+y<-autos$dist #distancia requerida de frenado
+
+plot(x,y,pch=20)
+
+
+#grafico bonitos
+g2<-ggplot(data=autos,aes(x=speed, y=dist))+ 
+  geom_point()+
+  labs(title="",
+       x="Velocidad", 
+       y = "Distancia de frenado")+
+  theme_light()
+g2
+
+reg<-lm(dist~speed,data=autos)
+summary(reg)
+
+#ic para los coeficientes de la regresion
+
+LI<-summary(reg)$coef[2,1]-qt(0.975,32-2)*summary(reg)$coef[2,2]
+LS<-summary(reg)$coef[2,1]+qt(0.975,32-2)*summary(reg)$coef[2,2]
+
+c(LI,LS)
+
+confint(reg)
+
+#Una forma de graficarlo sin hacer las cuentas, con ggplot2
+g2+ geom_smooth(method="lm", col="firebrick",se=FALSE)+
+  labs(title="",
+       x="Velocidad", 
+       y = "Distancia de frenado")+
+  theme_light()
+
+
+# Calculamos los intervalos usando la fórmula
+
+# a) Intervalos de CONFIANZA
+n<-nrow(autos)
+X<-model.matrix(reg)
+p<-ncol(X) #cant de parametros a estimar
+
+res<-reg$residuals # los residuos son y - y^
+
+s2<-t(res)%*%res/(n-p)
+# s2<-summary(reg)$sigma^2 si no quiero hacer la cuenta
+
+A<-solve(t(X)%*%X)
+
+
+
+#Podemos hacer la cuenta a mano... yo^=beta0+beta1*x0
+
+IC<-matrix(0,nrow = n,ncol=2)
+for(i in 1:n)
+{
+  IC[i,]<-c(reg$fitted.values[i]-qt(0.975,n-p)*sqrt(s2[1,1]*t(X[i,])%*%A%*%X[i,]),
+            reg$fitted.values[i]+qt(0.975,n-p)*sqrt(s2[1,1]*t(X[i,])%*%A%*%X[i,])) 
+}
+
+
+# O dejamos que lo haga R
+
+int<-predict(reg ,interval = "confidence", level = 0.95)
+
+
+# b) Intervalos de PREDICCION
+
+ICP<-matrix(0,nrow = n,ncol=2)
+for(i in 1:n)
+{
+  ICP[i,]<-c(reg$fitted.values[i]-qt(0.975,n-p)*sqrt(s2[1,1]*(1+t(X[i,])%*%A%*%X[i,])),
+             reg$fitted.values[i]+qt(0.975,n-p)*sqrt(s2[1,1]*(1+t(X[i,])%*%A%*%X[i,]))) 
+}
+
+
+# o con R
+
+intP<-predict(reg,interval = "prediction", level = 0.95)
+
+
+# graficamos con plot
+
+plot(x,y,pch=20)
+abline(reg, col=col1, lwd=2)
+points(x,IC[,1],pch=20,col=col2)
+points(x,IC[,2],pch=20,col=col2)
+points(x,ICP[,1],pch=20,col=col3)
+points(x,ICP[,2],pch=20,col=col3)
+# o con ggplot2
+
+# Creamos un nuevo data frame con toda la información
+
+intervalos<-data.frame(cbind(autos,IC,ICP))
+
+g<-ggplot(intervalos)+
+  geom_point(aes(x=speed,y=dist))+
+  geom_line(aes(x=speed,y=X1), col="skyblue")+
+  geom_line(aes(x=speed,y=X2), col="skyblue")+
+  geom_line(aes(x=speed,y=X1.1), col="chocolate",lty=4)+
+  geom_line(aes(x=speed,y=X2.1), col="chocolate",lty=4)+
+  geom_smooth(aes(x=speed,y=dist),method="lm", col="firebrick",se=FALSE)+
+  theme_light()
+g
+
+
+
+# Bandas de confianza
+
+BC<-matrix(0,nrow = n,ncol=2)
+for(i in 1:n)
+{
+  BC[i,]<-c(reg$fitted.values[i]-sqrt(p*qf(0.95,p,n-p))*sqrt(s2[1,1]*(t(X[i,])%*%A%*%X[i,])),
+            reg$fitted.values[i]+sqrt(p*qf(0.95,p,n-p))*sqrt(s2[1,1]*(t(X[i,])%*%A%*%X[i,]))) 
+}
+
+intervalos<-data.frame(cbind(autos,IC,ICP,BC))
+g<-ggplot(intervalos)+
+  geom_point(aes(x=speed,y=dist))+
+  geom_line(aes(x=speed,y=X1), col="skyblue")+
+  geom_line(aes(x=speed,y=X2), col="skyblue")+
+  geom_line(aes(x=speed,y=X1.1), col="chocolate",lty=4)+
+  geom_line(aes(x=speed,y=X2.1), col="chocolate",lty=4)+
+  geom_line(aes(x=speed,y=X1.2), col="chartreuse4",lwd=1.5)+
+  geom_line(aes(x=speed,y=X2.2), col="chartreuse4",lwd=1.5)+
+  geom_smooth(aes(x=speed,y=dist),method="lm", col="firebrick",se=FALSE)+
+  theme_light()
+g
+
+confint(reg)
+
+```
+
+# Nadaraya-Watson
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+
+# Ejercicio para desarrollar en clase
+
+# eLIDAR (light detection and ranging)
+# range --> x
+# logratio --> y
+
+
+datos<-read.table("lidar.txt",header = TRUE)
+
+#1
+help("ksmooth")
+
+plot(datos$range,datos$int.conc,pch=20,col="skyblue",
+     xlab= "Ratio", ylab = "Logaritmo del cociente")
+
+# Nadaraya watson usando R, si no te armas la funcion
+regNP<-ksmooth(datos$range,datos$int.conc,kernel = "normal", bandwidth = 5,
+               x.points = datos$range)
+lines(regNP$x,regNP$y,col= "chocolate",lwd=2)
+
+regNP2<-ksmooth(datos$range,datos$int.conc,kernel = "normal", bandwidth = 10,
+                x.points = datos$range)
+lines(regNP2$x,regNP2$y,col= "darkred",lwd=2)
+
+regNP3<-ksmooth(datos$range,datos$int.conc,kernel = "normal", bandwidth = 30,
+                x.points = datos$range)
+lines(regNP3$x,regNP3$y,col= "forestgreen",lwd=2)
+
+regNP4<-ksmooth(datos$range,datos$int.conc,kernel = "normal", bandwidth = 50,
+                x.points = datos$range)
+lines(regNP4$x,regNP4$y,col= "red",lwd=2)
+
+
+# ¿Que pasa cuando aumento h?
+
+
+# Errores sobre los datos que use para predecir
+
+ecpp1<-mean((datos$int.conc-regNP$y)^2)
+ecpp2<-mean((datos$int.conc-regNP2$y)^2)
+ecpp3<-mean((datos$int.conc-regNP3$y)^2)
+ecpp4<-mean((datos$int.conc-regNP4$y)^2)
+
+c(ecpp1,ecpp2,ecpp3,ecpp4) 
+
+# LOO-CV Busco la ventana optima
+
+h<-seq(3,165,1)
+help("seq")
+
+ecm<-c()
+cv<-c()
+for(j in 1:length(h))
+{
+  for(i in 1:length(datos$range))
+  {
+    regNP<-ksmooth(datos$range[-i],datos$int.conc[-i],kernel = "normal", bandwidth = h[j],
+                   x.points = datos$range[i])
+    ecm[i]<-(datos$int.conc[i]-regNP$y)^2
+  }
+  cv[j]<-mean(ecm)
+}
+
+plot(h,cv,pch=20)
+h_CV<-h[which.min(cv)]
+
+
+# solo con train y test
+indices<-sample(1:221,221*0.8, replace=TRUE)
+train<-datos[indices,]
+test<-datos[-indices,]
+ecm<-c()
+cv<-c()
+for(j in 1:length(h))
+{
+  regNP<-ksmooth(train$range,train$int.conc,kernel = "normal", bandwidth = h[j],
+                   x.points = test$range)
+  ecm<-(test$int.conc-regNP$y)^2
+  cv[j]<-mean(ecm)
+}
+
+
+# Vemos como queda la mejor
+
+plot(datos$range,datos$int.conc,pch=20,col="skyblue",
+     xlab= "Ratio", ylab = "Logaritmo del cociente")
+
+regNP<-ksmooth(datos$range,datos$int.conc,kernel = "normal", bandwidth = h_CV,
+               x.points = datos$range)
+lines(regNP$x,regNP$y,col= "chocolate",lwd=2)
+
+# error con el mejor
+
+ecpp5<-mean((datos$int.conc-regNP$y)^2)
+
+
+# Sacamos una mejor estimacion del error con el mejor (usando CV)
+
+ecm<-c()
+for(i in 1:length(datos$range))
+{
+  regNP<-ksmooth(datos$range[-i],datos$int.conc[-i],kernel = "normal", bandwidth = h_CV,
+                 x.points = datos$range[i])
+  ecm[i]<-(datos$int.conc[i]-regNP$y)^2
+}
+ecv<-mean(ecm)
+
+```
+
+# Metodo de la mayoria: KNN, Ventana. Con CV
+
+```{r}
+setwd("C:/Users/Florencia/Dropbox/IECD_3M/2022/Clases practicas 2022/Clase 23 - Clasificación")
+datos <- read.table("alturasENNyS2.entren.txt")
+
+boxplot(datos[,1]~datos[,2],xlab="sexo",ylab="altura")
+
+sort(datos[,1])[1:10]
+
+ClasificoVecinos <- function(A,S,a,k){
+	modulos <- abs(A-a)
+	meQuedo <- order(modulos)[1:k] ## coordenadas de los k-vecinos más cercanos
+	frecRel <- mean(S[meQuedo]==0) ## estimamos P(Y=0|X=x)
+	if(frecRel==0.5 & runif(1)>0.5){ salida <- 0 }else{ salida <- 1 } ## salvamos los empates
+	if(frecRel>0.5){
+		salida <- 0
+	}
+	if(frecRel<0.5){
+		salida <- 1
+	}
+	salida
+}
+ClasificoVecinos(datos[,1],datos[,2],165,10)
+ClasificoVecinos(datos[,1],datos[,2],175,10)
+
+vc.Vecinos <- function(A,S,k){
+	n <- length(A)
+	clasif <- rep(NA,n)
+	for(i in 1:n){
+		clasif[i] <- ClasificoVecinos(A[-i],S[-i],A[i],k)
+	}
+	mean(clasif!=S)
+}
+
+kmax <- 40
+vcvmc <- rep(NA,kmax)
+for(j in 1:kmax){
+	vcvmc[j] <- vc.Vecinos(datos[,1],datos[,2],j)
+}
+vcvmc
+
+kvc <- which.min(vcvmc) ## 37
+
+ClasificoMovil <- function(A,S,a,h){
+	modulos <- abs(A-a)
+	meQuedo <- modulos <= h
+	frecRel <- mean(S[meQuedo]) ## estimamos P(Y=1|X=x)
+	if(frecRel>=0.5){salida <- 1}else{salida <- 0} ## no salvamos los empates
+	salida
+}
+ClasificoMovil(datos[,1],datos[,2],165,1.5)
+ClasificoMovil(datos[,1],datos[,2],175,1.5)
+
+vc.Movil <- function(A,S,h){
+	n <- length(A)
+	clasif <- rep(NA,n)
+	for(i in 1:n){
+		clasif[i] <- ClasificoMovil(A[-i],S[-i],A[i],h)
+	}
+	mean(clasif!=S)
+}
+vc.Movil(datos[,1],datos[,2],1.5)
+
+grillah <- c(seq(1.5,2.5,by=0.5),seq(3,4,by=0.1),seq(4.5,8,by=0.5))
+grillah <- seq(6.5,7.5,by=0.01)
+lh <- length(grillah)
+vcvmc <- rep(NA,lh)
+for(j in 1:lh){
+	vcvmc[j] <- vc.Movil(datos[,1],datos[,2],grillah[j])
+}
+vcvmc
+
+hvc <- grillah[which.min(vcvmc)] ## 7,38 (en el refinamiento)
+
+## estimando densidades
+## bw.ucv es para núcleos gaussianos, minimiza LSCV de la diapositiva 7 de la clase teórica 5
+h0 <- bw.ucv(datos[datos[,2]==0,1]) 
+h1 <- bw.ucv(datos[datos[,2]==1,1])
+par(mfrow=c(1,2))
+hist(datos[datos[,2]==0,1],probability=TRUE)
+lines(density(datos[datos[,2]==0,1],bw=h0),col="blue") ## se visualiza poco suave
+hist(datos[datos[,2]==1,1],probability=TRUE)
+lines(density(datos[datos[,2]==1,1],bw=h1),col="red")
+## con la ventana sesgada, la estimación es más suave
+h0 <- bw.bcv(datos[datos[,2]==0,1]) 
+h1 <- bw.bcv(datos[datos[,2]==1,1])
+par(mfrow=c(1,2))
+hist(datos[datos[,2]==0,1],probability=TRUE)
+lines(density(datos[datos[,2]==0,1],bw=h0),col="blue") 
+hist(datos[datos[,2]==1,1],probability=TRUE)
+lines(density(datos[datos[,2]==1,1],bw=h1),col="red")
+
+### hay que usar lo que hicieron con Jemi en la clase 3
+f_sombrero<-function(x,k,datos,h) #datos= Xi
+{
+  s<-0
+  for(i in 1:length(datos))
+  {
+    c<-k((x-datos[i])/h)
+    s<-s+c
+  }
+  f<-s/(length(datos)*h)
+  return(f)
+}
+## está dnorm para utilizar el núcleo gaussiano
+densidad.est.parzen<-function(x,h,z) # x: datos, z:valor donde exaluo la f
+{
+  f_sombrero(z,dnorm,x,h)
+}
+
+ClasificoGenerativo <- function(A,S,a,h0,h1){
+	fsomb0 <- densidad.est.parzen(A[S==0],h0,a)
+	fsomb1 <- densidad.est.parzen(A[S==1],h1,a)
+	p0 <- mean(S==0)
+	if(fsomb0*p0>=fsomb1*(1-p0)){
+		salida <- 0
+	}else{
+		salida <- 1
+	}
+	salida
+}
+ClasificoGenerativo(datos[,1],datos[,2],165,h0,h1)
+ClasificoGenerativo(datos[,1],datos[,2],175,h0,h1)
+
+nuevos <- read.table("alturasENNyS2.prueba.txt")
+sexos <- datos[,2]
+long <- dim(nuevos)[1]
+vecinos <- rep(NA,long)
+moviles <- rep(NA,long)
+genera <- rep(NA,long)
+for(l in 1:long){
+	vecinos[l] <- ClasificoVecinos(datos[,1],sexos,nuevos[l,1],37)
+	moviles[l] <- ClasificoMovil(datos[,1],sexos,nuevos[l,1],7.38)
+	genera[l] <- ClasificoGenerativo(datos[,1],sexos,nuevos[l,1],h0,h1)
+}
+nuevosSexos <- nuevos[,2]
+mean((vecinos-nuevosSexos)^2)
+mean((moviles-nuevosSexos)^2)
+mean((genera-nuevosSexos)^2)
+## el menor error de clasificación lo brinda el método generativo
+
+```
+
+
